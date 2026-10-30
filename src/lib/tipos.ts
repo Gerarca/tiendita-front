@@ -16,6 +16,7 @@ export interface Categoria {
   orden: number;
   activo: boolean;
   productosActivos: number;
+  vozFiscalId: number | null;
   hijas?: Categoria[];
 }
 
@@ -30,6 +31,7 @@ export interface Producto {
   stockMinimo: number | null;
   stockBajo: boolean;
   activo: boolean;
+  vozFiscal: { id: number; nombre: string; exentoIva: boolean; origen: 'producto' | 'categoria' } | null;
   categoria: { id: number; nombre: string; padre: { id: number; nombre: string } | null };
 }
 
@@ -166,4 +168,34 @@ export interface Regalo {
 
 export interface ListaRegalos extends Pagina<Regalo> {
   resumen: { regalos: number; unidades: number; valorTotalUsd: string };
+}
+
+export interface VentaDetalle extends VentaRegistrada {
+  detalles: {
+    productoId: number;
+    codigo: string;
+    nombre: string;
+    cantidad: number;
+    precioUnitUsd: string;
+    precioUnitBs: string;
+    subtotalUsd: string;
+    subtotalBs: string;
+  }[];
+  pagos: {
+    metodo: MetodoPago;
+    moneda: 'BS' | 'USD';
+    monto: string;
+    montoUsd: string;
+    montoBs: string;
+    cuenta: { id: number; nombre: string; banco: string } | null;
+    referencia: string | null;
+  }[];
+  anulacion: { motivo: string | null; por: string | null; en: string | null } | null;
+}
+
+export interface VozFiscal {
+  id: number;
+  nombre: string;
+  exentoIva: boolean;
+  activo: boolean;
 }

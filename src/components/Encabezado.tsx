@@ -44,6 +44,7 @@ export function Encabezado() {
 const PESTANAS = [
   { href: '/inventario/', texto: 'INVENTARIO' },
   { href: '/ventas/', texto: 'VENTAS' },
+  { href: '/facturas/', texto: 'FACTURAS' },
   { href: '/ingresos/', texto: 'INGRESO DE MATERIAL' },
   { href: '/traspasos/', texto: 'TRASPASO DE MATERIAL' },
   { href: '/regalos/', texto: 'REGALOS' },

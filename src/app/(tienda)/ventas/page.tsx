@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialogo } from '@/components/Dialogo';
+import { BotonFactura } from '@/components/facturas/BotonFactura';
 import { AgregarProducto } from '@/components/ventas/AgregarProducto';
 import { CLIENTE_VACIO, DatosCliente, type ClienteVenta } from '@/components/ventas/DatosCliente';
 import { esEfectivo, FormaDePago, type ModoPago, type PagoForm } from '@/components/ventas/FormaDePago';
@@ -278,7 +279,12 @@ export default function PaginaVentas() {
                 </>
               )}
             </dl>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex items-start justify-between gap-3">
+              <BotonFactura
+                ventaId={resultado.id}
+                numeroControl={resultado.numeroControl}
+                className="rounded border-2 border-cafe-oscuro px-5 py-2 font-mano text-2xl uppercase text-cafe-oscuro hover:bg-durazno-claro disabled:opacity-60"
+              />
               <button autoFocus onClick={nuevaVenta} className="rounded bg-cafe-oscuro px-6 py-2 font-mano text-2xl uppercase text-white hover:bg-cafe">
                 Nueva venta
               </button>

@@ -106,3 +106,37 @@ export async function descargar(ruta: string, nombrePorDefecto: string): Promise
   enlace.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/**
+ * Abre un PDF de la API en una pestaña nueva, listo para imprimir.
+ * La pestaña se abre ANTES de pedir el archivo para que el navegador no la
+ * bloquee como ventana emergente; si igual la bloquea, se descarga.
+ */
+export async function abrirPdf(ruta: string, nombre: string): Promise<void> {
+  const ventana = window.open('', '_blank');
+  const t = token.leer();
+  try {
+    const respuesta = await fetch(`${API_URL}/api${ruta}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+    if (respuesta.status === 401 && t) {
+      token.borrar();
+      alVencerSesion?.();
+    }
+    if (!respuesta.ok) {
+      const cuerpo: unknown = await respuesta.json().catch(() => null);
+      throw new ErrorApi(mensajeDe(cuerpo, respuesta.status), respuesta.status, cuerpo);
+    }
+    const url = URL.createObjectURL(await respuesta.blob());
+    if (ventana) {
+      ventana.location.href = url;
+    } else {
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = nombre;
+      enlace.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+    ventana?.close();
+    throw e instanceof ErrorApi ? e : new ErrorApi('No hay conexión con el servidor de la tienda', 0);
+  }
+}

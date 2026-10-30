@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Dialogo } from '@/components/Dialogo';
+import { BotonFactura } from '@/components/facturas/BotonFactura';
 import { MensajeError } from '@/components/Estados';
 import { api, ErrorApi } from '@/lib/api';
 import { fmtBs, fmtHora, fmtUsd, hoyIso, NOMBRE_METODO } from '@/lib/formato';
@@ -67,15 +68,15 @@ export function VentasDeHoy({ esAdmin }: { esAdmin: boolean }) {
               <th className="py-2 pr-3 text-right font-semibold">Total Bs</th>
               <th className="py-2 pr-3 font-semibold">Forma de pago</th>
               <th className="py-2 pr-3 font-semibold">Vendedor</th>
-              {esAdmin && <th className="py-2"><span className="sr-only">Acciones</span></th>}
+              <th className="py-2"><span className="sr-only">Acciones</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-cafe/20">
             {data.datos.map((v) => {
               const anulada = v.estado === 'ANULADA';
               return (
-                <tr key={v.id} className={anulada ? 'text-tinta/40 line-through' : ''}>
-                  <td className="py-2 pr-3 font-semibold tabular-nums">{v.numeroControl}</td>
+                <tr key={v.id} className={anulada ? 'text-tinta/40' : ''}>
+                  <td className={`py-2 pr-3 font-semibold tabular-nums ${anulada ? 'line-through' : ''}`}>{v.numeroControl}</td>
                   <td className="py-2 pr-3 tabular-nums">{fmtHora(v.fecha)}</td>
                   <td className="py-2 pr-3">{v.cliente.nombre}</td>
                   <td className="py-2 pr-3 text-right tabular-nums">{v.unidades}</td>
@@ -83,24 +84,21 @@ export function VentasDeHoy({ esAdmin }: { esAdmin: boolean }) {
                   <td className="py-2 pr-3 text-right tabular-nums">{fmtBs(v.totalBs)}</td>
                   <td className="py-2 pr-3">{NOMBRE_METODO[v.formaPago]}</td>
                   <td className="py-2 pr-3">{v.vendedor}</td>
-                  {esAdmin && (
-                    <td className="py-2 text-right no-underline">
-                      {anulada ? (
-                        <span className="text-xs no-underline">Anulada</span>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setAnulando(v);
-                            setMotivo('');
-                            setError(null);
-                          }}
-                          className="text-xs text-ladrillo underline"
-                        >
-                          Anular
-                        </button>
-                      )}
-                    </td>
-                  )}
+                  <td className="whitespace-nowrap py-2 text-right">
+                    <BotonFactura ventaId={v.id} numeroControl={v.numeroControl} texto="Factura" className="text-xs text-cafe-oscuro underline" />
+                    {esAdmin && !anulada && (
+                      <button
+                        onClick={() => {
+                          setAnulando(v);
+                          setMotivo('');
+                          setError(null);
+                        }}
+                        className="ml-3 text-xs text-ladrillo underline"
+                      >
+                        Anular
+                      </button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
