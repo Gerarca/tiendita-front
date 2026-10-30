@@ -1,0 +1,46 @@
+'use client';
+
+import { useEffect, useRef, type ReactNode } from 'react';
+
+/**
+ * Ventana modal con <dialog> nativo: el navegador se encarga de atrapar el
+ * foco y de cerrar con Escape.
+ */
+export function Dialogo({
+  abierto,
+  titulo,
+  alCerrar,
+  children,
+}: {
+  abierto: boolean;
+  titulo: string;
+  alCerrar: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (abierto && !d.open) d.showModal();
+    if (!abierto && d.open) d.close();
+  }, [abierto]);
+
+  return (
+    <dialog
+      ref={ref}
+      onClose={alCerrar}
+      className="m-auto w-[min(34rem,calc(100%-2rem))] rounded-lg border-2 border-cafe bg-white p-0 text-tinta backdrop:bg-tinta/40"
+    >
+      <div className="max-h-[85vh] overflow-y-auto p-6">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <h2 className="font-mano text-3xl uppercase tracking-wide text-cafe-oscuro">{titulo}</h2>
+          <button onClick={alCerrar} aria-label="Cerrar" className="rounded px-2 text-2xl leading-none text-cafe hover:bg-durazno-claro">
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
+    </dialog>
+  );
+}

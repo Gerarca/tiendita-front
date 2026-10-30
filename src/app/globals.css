@@ -1,0 +1,38 @@
+@import 'tailwindcss';
+
+/* Paleta y tipografía tomadas del boceto de la tienda */
+@theme {
+  --color-durazno: #f8d9bb;
+  --color-durazno-claro: #fcebdc;
+  --color-cafe: #8b5e3c;
+  --color-cafe-oscuro: #5a3a22;
+  --color-tinta: #2b2220;
+  --color-ladrillo: #b3412e;
+  --color-salvia: #4f7a4a;
+
+  --font-mano: 'Patrick Hand', 'Comic Sans MS', cursive;
+  --font-sans: 'Nunito Variable', 'Segoe UI', system-ui, sans-serif;
+}
+
+html {
+  background: var(--color-durazno);
+  color: var(--color-tinta);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Foco visible para quien navega con teclado */
+:focus-visible {
+  outline: 2px solid var(--color-cafe);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
