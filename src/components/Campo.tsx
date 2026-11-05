@@ -36,7 +36,7 @@ export function BotonesFormulario({ alCancelar, enviando, textoGuardar = 'Guarda
       <button type="button" onClick={alCancelar} className="rounded border-2 border-cafe/60 px-4 py-1.5 font-mano text-xl uppercase text-cafe-oscuro hover:bg-durazno-claro">
         Cancelar
       </button>
-      <button type="submit" disabled={enviando} className="rounded bg-cafe-oscuro px-5 py-1.5 font-mano text-xl uppercase text-white hover:bg-cafe disabled:opacity-60">
+      <button type="submit" data-flujo={9} disabled={enviando} className="rounded bg-cafe-oscuro px-5 py-1.5 font-mano text-xl uppercase text-white hover:bg-cafe disabled:opacity-60">
         {enviando ? 'Guardando…' : textoGuardar}
       </button>
     </div>

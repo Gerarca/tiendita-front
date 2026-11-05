@@ -170,6 +170,25 @@ export interface ListaRegalos extends Pagina<Regalo> {
   resumen: { regalos: number; unidades: number; valorTotalUsd: string };
 }
 
+/** Regalo o traspaso, según la pestaña (mismos datos, distintos nombres de campo). */
+export interface Salida {
+  id: number;
+  fecha: string;
+  beneficiario?: string;
+  motivo?: string;
+  departamento?: string;
+  hermanaEncargada?: string;
+  autorizadoPor: string | null;
+  registradoPor: string;
+  unidades: number;
+  valorTotalUsd: string;
+  detalles: Regalo['detalles'];
+}
+
+export interface ListaSalidas extends Pagina<Salida> {
+  resumen: { regalos?: number; traspasos?: number; unidades: number; valorTotalUsd: string };
+}
+
 export interface VentaDetalle extends VentaRegistrada {
   detalles: {
     productoId: number;
@@ -198,4 +217,27 @@ export interface VozFiscal {
   nombre: string;
   exentoIva: boolean;
   activo: boolean;
+}
+
+export interface TasaRegistro {
+  fecha: string;
+  bsPorUsd: string;
+  fuente: 'BCV' | 'MANUAL';
+  registradaPor: string | null;
+  creadoEn: string;
+}
+
+export type ResultadoBcv =
+  | { estado: 'REGISTRADA'; fecha: string; bsPorUsd: string }
+  | { estado: 'YA_EXISTE'; fecha: string; fuente: string; bsPorUsd: string }
+  | { estado: 'RECHAZADA' | 'ERROR'; mensaje: string }
+  | { estado: 'DESACTIVADA' | 'EN_CURSO' };
+
+export interface CuentaUsuario {
+  id: number;
+  nombre: string;
+  usuario: string;
+  rol: Rol;
+  activo: boolean;
+  creadoEn: string;
 }

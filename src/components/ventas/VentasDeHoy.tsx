@@ -44,7 +44,7 @@ export function VentasDeHoy({ esAdmin }: { esAdmin: boolean }) {
   return (
     <section className="mt-10">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="font-mano text-2xl uppercase tracking-wide text-cafe">Ventas de hoy</h2>
+        <h2 className="font-mano text-2xl uppercase tracking-wide text-cafe">{esAdmin ? 'Ventas de hoy' : 'Mis ventas de hoy'}</h2>
         {data && (
           <p className="text-sm">
             {data.resumen.ventasActivas} venta(s):{' '}
@@ -67,7 +67,7 @@ export function VentasDeHoy({ esAdmin }: { esAdmin: boolean }) {
               <th className="py-2 pr-3 text-right font-semibold">Total $</th>
               <th className="py-2 pr-3 text-right font-semibold">Total Bs</th>
               <th className="py-2 pr-3 font-semibold">Forma de pago</th>
-              <th className="py-2 pr-3 font-semibold">Vendedor</th>
+              {esAdmin && <th className="py-2 pr-3 font-semibold">Vendedor</th>}
               <th className="py-2"><span className="sr-only">Acciones</span></th>
             </tr>
           </thead>
@@ -83,7 +83,7 @@ export function VentasDeHoy({ esAdmin }: { esAdmin: boolean }) {
                   <td className="py-2 pr-3 text-right tabular-nums">{fmtUsd(v.totalUsd)}</td>
                   <td className="py-2 pr-3 text-right tabular-nums">{fmtBs(v.totalBs)}</td>
                   <td className="py-2 pr-3">{NOMBRE_METODO[v.formaPago]}</td>
-                  <td className="py-2 pr-3">{v.vendedor}</td>
+                  {esAdmin && <td className="py-2 pr-3">{v.vendedor}</td>}
                   <td className="whitespace-nowrap py-2 text-right">
                     <BotonFactura ventaId={v.id} numeroControl={v.numeroControl} texto="Factura" className="text-xs text-cafe-oscuro underline" />
                     {esAdmin && !anulada && (

@@ -3,11 +3,16 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { BotonesFormulario, Campo } from '@/components/Campo';
-import { api, ErrorApi } from '@/lib/api';
+import { api, ErrorApi, urlImagen } from '@/lib/api';
+import { alEnter, FLUJO_PRODUCTO as O } from '@/lib/flujo';
 import { fmtUsd, hoyVenezuela, leerEntero, leerMonto } from '@/lib/formato';
 import type { Ingreso, Pagina, Producto } from '@/lib/tipos';
+import { SelectorImagen } from './SelectorImagen';
 
-/** Boceto "EXISTENTE": suma unidades a un producto y, si es admin, permite cambiar su precio. */
+/**
+ * Boceto "EXISTENTE": suma unidades a un producto. El admin además puede
+ * cambiar el precio y reemplazar la imagen (con o sin ingreso de unidades).
+ */
 export function FormProductoExistente({
   categoriaId,
   nombreCategoria,
@@ -30,6 +35,7 @@ export function FormProductoExistente({
   const [precio, setPrecio] = useState('');
   const [costo, setCosto] = useState('');
   const [nota, setNota] = useState('');
+  const [imagen, setImagen] = useState<File | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -56,6 +62,7 @@ export function FormProductoExistente({
     setProducto(p);
     setPrecio(p.precioUsd.replace('.', ','));
     setEditarPrecio(false);
+    setImagen(null);
   }
 
   async function guardar(e: FormEvent) {
@@ -64,43 +71,66 @@ export function FormProductoExistente({
     setErrorGeneral(null);
 
     const nuevos: Record<string, string> = {};
-    const cant = leerEntero(cantidad);
-    if (cant === null) nuevos.cantidad = 'Cantidad entera mayor que cero';
     const nuevoPrecio = editarPrecio ? leerMonto(precio) : undefined;
     if (nuevoPrecio === null) nuevos.precio = 'Precio en $ con máximo 2 decimales';
+    const cambiaPrecio = typeof nuevoPrecio === 'number' && nuevoPrecio !== Number(producto.precioUsd);
+
+    // La cantidad es opcional solo si el admin cambia la imagen o el precio
+    const cant = cantidad.trim() ? leerEntero(cantidad) : undefined;
+    if (cant === null) nuevos.cantidad = 'Cantidad entera mayor que cero';
+    else if (cant === undefined && !imagen && !cambiaPrecio) {
+      nuevos.cantidad = esAdmin ? 'Indica las unidades que entran, o cambia el precio o la imagen' : 'Indica las unidades que entran';
+    }
     const cost = costo.trim() ? leerMonto(costo) : undefined;
     if (cost === null) nuevos.costo = 'Costo inválido';
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) return;
 
-    const cambiaPrecio = nuevoPrecio !== undefined && nuevoPrecio !== Number(producto.precioUsd);
-
     setEnviando(true);
+    const partes: string[] = [];
     try {
-      await api<Ingreso>('/ingresos', {
-        method: 'POST',
-        json: {
-          detalles: [
-            {
-              productoId: producto.id,
-              cantidad: cant,
-              ...(cost !== undefined ? { costoUnitUsd: cost } : {}),
-              ...(cambiaPrecio ? { nuevoPrecioUsd: nuevoPrecio } : {}),
-            },
-          ],
-          ...(nota.trim() ? { nota: nota.trim() } : {}),
-        },
-      });
+      if (typeof cant === 'number') {
+        // Ingreso de unidades (y precio nuevo en la misma operación, con su historial)
+        await api<Ingreso>('/ingresos', {
+          method: 'POST',
+          json: {
+            detalles: [
+              {
+                productoId: producto.id,
+                cantidad: cant,
+                ...(cost !== undefined ? { costoUnitUsd: cost } : {}),
+                ...(cambiaPrecio ? { nuevoPrecioUsd: nuevoPrecio } : {}),
+              },
+            ],
+            ...(nota.trim() ? { nota: nota.trim() } : {}),
+          },
+        });
+        partes.push(`Ingresaron ${cant} unidad(es) de ${producto.codigo} ${producto.nombre}. Stock actual: ${producto.stock + cant}.`);
+        if (cambiaPrecio) partes.push(`Precio actualizado a ${fmtUsd(nuevoPrecio!)}.`);
+      } else if (cambiaPrecio) {
+        // Solo cambio de precio, sin mercancía (queda igual en el historial de precios)
+        await api<Producto>(`/productos/${producto.id}`, { method: 'PATCH', json: { precioUsd: nuevoPrecio } });
+        partes.push(`${producto.codigo} ${producto.nombre}: precio actualizado a ${fmtUsd(nuevoPrecio!)}.`);
+      }
+
+      if (imagen) {
+        const datos = new FormData();
+        datos.append('imagen', imagen);
+        try {
+          await api(`/productos/${producto.id}/imagen`, { method: 'POST', body: datos });
+          partes.push(typeof cant !== 'number' && !cambiaPrecio ? `${producto.codigo} ${producto.nombre}: imagen actualizada.` : 'Imagen actualizada.');
+        } catch (err) {
+          partes.push(`La imagen no se pudo subir (${err instanceof ErrorApi ? err.message : 'error'}).`);
+        }
+      }
+
       await Promise.all([
         clienteQuery.invalidateQueries({ queryKey: ['productos'] }),
         clienteQuery.invalidateQueries({ queryKey: ['ingresos'] }),
       ]);
-      alTerminar(
-        `Ingresaron ${cant} unidad(es) de ${producto.codigo} ${producto.nombre}. Stock actual: ${producto.stock + cant!}.` +
-          (cambiaPrecio ? ` Precio actualizado a ${fmtUsd(nuevoPrecio!)}.` : ''),
-      );
+      alTerminar(partes.join(' '));
     } catch (err) {
-      setErrorGeneral(err instanceof ErrorApi ? err.message : 'No se pudo registrar el ingreso');
+      setErrorGeneral(err instanceof ErrorApi ? err.message : 'No se pudo guardar');
     } finally {
       setEnviando(false);
     }
@@ -121,6 +151,12 @@ export function FormProductoExistente({
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Ej. PST-HUE o pasta"
           aria-label="Buscar producto"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (lista[0]) elegir(lista[0]);
+            }
+          }}
           className="mb-3 w-full border-b-2 border-cafe/40 px-1 py-1 outline-none focus:border-cafe"
         />
         {resultados.isLoading && <p className="py-4 text-center text-cafe">Buscando…</p>}
@@ -174,7 +210,7 @@ export function FormProductoExistente({
         <span className="tabular-nums">{producto.stock} unidad(es)</span>
       </div>
 
-      <Campo etiqueta="Cantidad" name="cantidad" inputMode="numeric" autoFocus value={cantidad} onChange={(e) => { setCantidad(e.target.value); limpiar('cantidad'); }} error={errores.cantidad} ayuda="Unidades que entran" />
+      <Campo etiqueta="Cantidad" name="cantidad" inputMode="numeric" autoFocus value={cantidad} onChange={(e) => { setCantidad(e.target.value); limpiar('cantidad'); }} error={errores.cantidad} onKeyDown={alEnter} data-flujo={O.cantidad} ayuda={esAdmin ? 'Unidades que entran (déjalo vacío si solo cambias precio o imagen)' : 'Unidades que entran'} />
 
       <div className="mb-3 grid grid-cols-[7.5rem_1fr] items-center gap-2">
         <span className="font-mano text-xl uppercase text-cafe-oscuro">Precio:</span>
@@ -185,6 +221,8 @@ export function FormProductoExistente({
               inputMode="decimal"
               value={precio}
               onChange={(e) => { setPrecio(e.target.value); limpiar('precio'); }}
+              onKeyDown={alEnter}
+              data-flujo={O.precio}
               aria-label="Nuevo precio en dólares"
               aria-invalid={errores.precio ? true : undefined}
               className={`w-28 border-b-2 bg-transparent px-1 py-1 outline-none focus:border-cafe ${errores.precio ? 'border-ladrillo' : 'border-cafe/40'}`}
@@ -195,7 +233,7 @@ export function FormProductoExistente({
           <span className="flex items-center gap-3">
             <span className="tabular-nums">{fmtUsd(producto.precioUsd)}</span>
             {esAdmin && (
-              <button type="button" onClick={() => setEditarPrecio(true)} className="text-sm text-cafe underline">
+              <button type="button" onClick={() => { setEditarPrecio(true); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('input[name=precio]')?.focus()); }} className="text-sm text-cafe underline">
                 Editar precio
               </button>
             )}
@@ -204,11 +242,13 @@ export function FormProductoExistente({
       </div>
       {errores.precio && <p className="-mt-2 mb-3 pl-[8rem] text-xs text-ladrillo">{errores.precio}</p>}
 
+      {esAdmin && <SelectorImagen imagenActual={urlImagen(producto.imagenUrl)} archivo={imagen} alCambiar={setImagen} />}
+
       <details className="mt-2 text-sm">
         <summary className="cursor-pointer text-cafe">Más datos (opcional)</summary>
         <div className="mt-3">
-          <Campo etiqueta="Costo" name="costo" inputMode="decimal" value={costo} onChange={(e) => { setCosto(e.target.value); limpiar('costo'); }} error={errores.costo} ayuda="Costo por unidad en $" />
-          <Campo etiqueta="Nota" name="nota" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej. Producción de esta semana" />
+          <Campo etiqueta="Costo" name="costo" inputMode="decimal" value={costo} onChange={(e) => { setCosto(e.target.value); limpiar('costo'); }} error={errores.costo} ayuda="Costo por unidad en $" onKeyDown={alEnter} data-flujo={O.costo} />
+          <Campo etiqueta="Nota" name="nota" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej. Producción de esta semana" onKeyDown={alEnter} data-flujo={O.nota} />
         </div>
       </details>
 

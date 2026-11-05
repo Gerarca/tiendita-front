@@ -11,7 +11,7 @@ export function TarjetaProducto({ producto, tasa }: { producto: Producto; tasa?:
         <span className="font-bold">COD:</span> {producto.codigo}
       </p>
 
-      <div className="mt-1 flex aspect-[4/3] w-full max-w-[11rem] items-center justify-center overflow-hidden bg-durazno-claro">
+      <div className="mt-1 flex aspect-[4/3] w-full max-w-[11rem] items-center justify-center overflow-hidden">
         {imagen ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={imagen} alt={producto.nombre} loading="lazy" className="h-full w-full object-contain" />

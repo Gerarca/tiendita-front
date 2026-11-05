@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useSesion } from '@/lib/sesion';
+import type { Rol } from '@/lib/tipos';
 
 /** Imagen opcional: si el archivo no está en /public, muestra el respaldo. */
 function Imagen({ src, alt, respaldo, className }: { src: string; alt: string; respaldo: React.ReactNode; className: string }) {
@@ -41,21 +42,31 @@ export function Encabezado() {
   );
 }
 
-const PESTANAS = [
-  { href: '/inventario/', texto: 'INVENTARIO' },
-  { href: '/ventas/', texto: 'VENTAS' },
-  { href: '/facturas/', texto: 'FACTURAS' },
-  { href: '/ingresos/', texto: 'INGRESO DE MATERIAL' },
-  { href: '/traspasos/', texto: 'TRASPASO DE MATERIAL' },
-  { href: '/regalos/', texto: 'REGALOS' },
+/** Pestañas y quién puede verlas. El backend aplica las mismas restricciones. */
+export const PESTANAS: { href: string; texto: string; roles: Rol[] }[] = [
+  { href: '/inventario/', texto: 'INVENTARIO', roles: ['ADMIN', 'VENDEDOR'] },
+  { href: '/ventas/', texto: 'VENTAS', roles: ['ADMIN', 'VENDEDOR'] },
+  { href: '/facturas/', texto: 'FACTURAS', roles: ['ADMIN', 'VENDEDOR'] },
+  { href: '/ingresos/', texto: 'INGRESO DE MATERIAL', roles: ['ADMIN'] },
+  { href: '/traspasos/', texto: 'TRASPASO DE MATERIAL', roles: ['ADMIN'] },
+  { href: '/regalos/', texto: 'REGALOS', roles: ['ADMIN'] },
+  { href: '/usuarios/', texto: 'USUARIOS', roles: ['ADMIN'] },
 ];
+
+/** ¿Este rol puede entrar a esta ruta? */
+export function puedeVer(ruta: string | null, rol: Rol | undefined): boolean {
+  const pestana = PESTANAS.find((p) => ruta?.startsWith(p.href.slice(0, -1)));
+  return !pestana || (rol !== undefined && pestana.roles.includes(rol));
+}
 
 export function Pestanas() {
   const ruta = usePathname();
+  const { usuario } = useSesion();
+  const visibles = PESTANAS.filter((p) => usuario && p.roles.includes(usuario.rol));
   return (
     <nav aria-label="Secciones" className="mx-auto max-w-6xl px-4">
       <ul className="flex w-max min-w-full border-b-2 border-cafe bg-white px-2 pt-2">
-        {PESTANAS.map((p, i) => {
+        {visibles.map((p, i) => {
           const activa = ruta?.startsWith(p.href.slice(0, -1));
           return (
             <li key={p.href} className={`relative ${i > 0 ? 'border-l-2 border-cafe/70' : ''}`}>

@@ -1,14 +1,13 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { BotonesFormulario, Campo } from '@/components/Campo';
 import { api, ErrorApi } from '@/lib/api';
+import { alEnter, FLUJO_PRODUCTO as O } from '@/lib/flujo';
 import { leerEntero, leerMonto } from '@/lib/formato';
 import type { Categoria, Ingreso, Producto, VozFiscal } from '@/lib/tipos';
-
-const TIPOS_IMAGEN = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_IMAGEN = 5 * 1024 * 1024;
+import { SelectorImagen } from './SelectorImagen';
 
 /** Boceto "NUEVO": crea el producto con su primer ingreso y, si hay, su imagen. */
 export function FormProductoNuevo({
@@ -29,7 +28,6 @@ export function FormProductoNuevo({
   const [nota, setNota] = useState('');
   const [vozFiscalId, setVozFiscalId] = useState<number | ''>('');
   const [imagen, setImagen] = useState<File | null>(null);
-  const [vistaPrevia, setVistaPrevia] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -39,24 +37,6 @@ export function FormProductoNuevo({
 
   /** Al editar un campo, su mensaje de error desaparece. */
   const limpiar = (campo: string) => setErrores((e) => (e[campo] ? { ...e, [campo]: '' } : e));
-
-  // Libera la memoria de la vista previa al cambiar de imagen o cerrar
-  useEffect(() => () => { if (vistaPrevia) URL.revokeObjectURL(vistaPrevia); }, [vistaPrevia]);
-
-  function elegirImagen(archivo: File | undefined) {
-    setErrores((e) => ({ ...e, imagen: '' }));
-    if (!archivo) return;
-    if (!TIPOS_IMAGEN.includes(archivo.type)) {
-      setErrores((e) => ({ ...e, imagen: 'Usa una imagen JPG, PNG o WEBP' }));
-      return;
-    }
-    if (archivo.size > MAX_IMAGEN) {
-      setErrores((e) => ({ ...e, imagen: 'La imagen pesa más de 5 MB' }));
-      return;
-    }
-    setImagen(archivo);
-    setVistaPrevia(URL.createObjectURL(archivo));
-  }
 
   async function guardar(e: FormEvent) {
     e.preventDefault();
@@ -123,31 +103,12 @@ export function FormProductoNuevo({
         Categoría: <strong className="text-cafe-oscuro">{categoria.nombre}</strong>
       </p>
 
-      <Campo etiqueta="Cod" name="codigo" value={codigo} onChange={(e) => { setCodigo(e.target.value); limpiar('codigo'); }} error={errores.codigo} autoFocus autoComplete="off" className="uppercase" />
-      <Campo etiqueta="Nombre" name="nombre" value={nombre} onChange={(e) => { setNombre(e.target.value); limpiar('nombre'); }} error={errores.nombre} autoComplete="off" />
-      <Campo etiqueta="Cantidad" name="cantidad" inputMode="numeric" value={cantidad} onChange={(e) => { setCantidad(e.target.value); limpiar('cantidad'); }} error={errores.cantidad} />
-      <Campo etiqueta="Precio" name="precio" inputMode="decimal" value={precio} onChange={(e) => { setPrecio(e.target.value); limpiar('precio'); }} error={errores.precio} ayuda="En dólares, ej. 2,80" />
+      <Campo etiqueta="Cod" name="codigo" value={codigo} onChange={(e) => { setCodigo(e.target.value); limpiar('codigo'); }} error={errores.codigo} autoFocus autoComplete="off" className="uppercase" onKeyDown={alEnter} data-flujo={O.codigo} />
+      <Campo etiqueta="Nombre" name="nombre" value={nombre} onChange={(e) => { setNombre(e.target.value); limpiar('nombre'); }} error={errores.nombre} autoComplete="off" onKeyDown={alEnter} data-flujo={O.nombre} />
+      <Campo etiqueta="Cantidad" name="cantidad" inputMode="numeric" value={cantidad} onChange={(e) => { setCantidad(e.target.value); limpiar('cantidad'); }} error={errores.cantidad} onKeyDown={alEnter} data-flujo={O.cantidad} />
+      <Campo etiqueta="Precio" name="precio" inputMode="decimal" value={precio} onChange={(e) => { setPrecio(e.target.value); limpiar('precio'); }} error={errores.precio} ayuda="En dólares, ej. 2,80" onKeyDown={alEnter} data-flujo={O.precio} />
 
-      <div className="mb-3 grid grid-cols-[7.5rem_1fr] items-start gap-2">
-        <span className="pt-1 font-mano text-xl uppercase text-cafe-oscuro">Imagen:</span>
-        <div>
-          <label className="flex aspect-[4/3] w-full max-w-[13rem] cursor-pointer items-center justify-center overflow-hidden rounded border-2 border-dashed border-cafe/60 bg-durazno-claro/50 text-center hover:bg-durazno-claro">
-            {vistaPrevia ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={vistaPrevia} alt="Vista previa" className="h-full w-full object-contain" />
-            ) : (
-              <span className="font-mano text-xl text-cafe">Insertar imagen</span>
-            )}
-            <input type="file" accept={TIPOS_IMAGEN.join(',')} className="sr-only" onChange={(e) => elegirImagen(e.target.files?.[0])} />
-          </label>
-          {imagen && (
-            <button type="button" onClick={() => { setImagen(null); setVistaPrevia(null); }} className="mt-1 text-xs text-cafe underline">
-              Quitar imagen
-            </button>
-          )}
-          {errores.imagen && <p className="mt-1 text-xs text-ladrillo">{errores.imagen}</p>}
-        </div>
-      </div>
+      <SelectorImagen archivo={imagen} alCambiar={setImagen} />
 
       <div className="mb-3 grid grid-cols-[7.5rem_1fr] items-center gap-2">
         <label htmlFor="voz" className="font-mano text-xl uppercase text-cafe-oscuro">
@@ -158,6 +119,8 @@ export function FormProductoNuevo({
             id="voz"
             value={vozFiscalId}
             onChange={(e) => setVozFiscalId(e.target.value ? Number(e.target.value) : '')}
+            onKeyDown={alEnter}
+            data-flujo={O.voz}
             className="w-full border-b-2 border-cafe/40 bg-transparent px-1 py-1 outline-none focus:border-cafe"
           >
             <option value="">
@@ -178,8 +141,8 @@ export function FormProductoNuevo({
       <details className="mt-2 text-sm">
         <summary className="cursor-pointer text-cafe">Más datos (opcional)</summary>
         <div className="mt-3">
-          <Campo etiqueta="Costo" name="costo" inputMode="decimal" value={costo} onChange={(e) => { setCosto(e.target.value); limpiar('costo'); }} error={errores.costo} ayuda="Costo por unidad en $, para calcular ganancia" />
-          <Campo etiqueta="Nota" name="nota" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej. Inventario inicial" />
+          <Campo etiqueta="Costo" name="costo" inputMode="decimal" value={costo} onChange={(e) => { setCosto(e.target.value); limpiar('costo'); }} error={errores.costo} ayuda="Costo por unidad en $, para calcular ganancia" onKeyDown={alEnter} data-flujo={O.costo} />
+          <Campo etiqueta="Nota" name="nota" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej. Inventario inicial" onKeyDown={alEnter} data-flujo={O.nota} />
         </div>
       </details>
 

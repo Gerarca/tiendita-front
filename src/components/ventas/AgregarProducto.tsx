@@ -16,9 +16,12 @@ const etiqueta = 'font-mano text-xl uppercase text-cafe-oscuro';
 export function AgregarProducto({
   alAgregar,
   refCodigo,
+  alCodigoVacio,
 }: {
   alAgregar: (p: Producto, cantidad: number) => void;
   refCodigo: RefObject<HTMLInputElement | null>;
+  /** Enter sin código: terminó de cargar productos (pasa a la forma de pago). */
+  alCodigoVacio?: () => void;
 }) {
   const [codigo, setCodigo] = useState('');
   const [cantidad, setCantidad] = useState('1');
@@ -47,7 +50,7 @@ export function AgregarProducto({
   async function resolverCodigo() {
     if (lista[indice]) return elegir(lista[indice]);
     const c = codigo.trim();
-    if (!c) return;
+    if (!c) return alCodigoVacio?.();
     try {
       elegir(await api<Producto>(`/productos/codigo/${encodeURIComponent(c)}`));
     } catch (e) {

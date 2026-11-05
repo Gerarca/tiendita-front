@@ -20,7 +20,7 @@ const REPORTES: Reporte[] = [
   { id: 'ventas', texto: 'Registro de ventas', ruta: '/reportes/ventas' },
   { id: 'regalos', texto: 'Control de regalos', ruta: '/reportes/regalos' },
   { id: 'pagos', texto: 'Pagos por cuenta', ruta: '/reportes/pagos', conCuenta: true },
-  { id: 'traspasos', texto: 'Detalles de traspasos' }, // pendiente de definir
+  { id: 'traspasos', texto: 'Detalles de traspasos', ruta: '/reportes/traspasos' },
 ];
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];

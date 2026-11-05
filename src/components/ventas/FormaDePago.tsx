@@ -1,5 +1,6 @@
 'use client';
 
+import { alEnter, FLUJO } from '@/lib/flujo';
 import { fmtBs, fmtUsd, leerMonto, NOMBRE_METODO } from '@/lib/formato';
 import type { Cotizacion, CuentaBancaria, MetodoPago } from '@/lib/tipos';
 
@@ -15,6 +16,8 @@ export type ModoPago = MetodoPago | 'MIXTA';
 
 const METODOS: MetodoPago[] = ['TARJETA', 'PAGO_MOVIL', 'TRANSFERENCIA', 'EFECTIVO_BS', 'EFECTIVO_USD'];
 export const esEfectivo = (m: MetodoPago) => m === 'EFECTIVO_BS' || m === 'EFECTIVO_USD';
+/** La referencia bancaria solo aplica a pago móvil y transferencia (no a tarjeta). */
+export const llevaReferencia = (m: MetodoPago) => m === 'PAGO_MOVIL' || m === 'TRANSFERENCIA';
 const moneda = (m: MetodoPago) => (m === 'EFECTIVO_USD' ? '$' : 'Bs');
 
 /** Monto en la moneda del método, a 2 decimales, sin redondear hacia abajo lo que falta. */
@@ -35,6 +38,15 @@ function mensajePago(pago: NonNullable<Cotizacion['pago']>): string {
     return `El pago supera el total por ${fmtBs(dif)}. Registra solo lo que queda en caja (descuenta el vuelto) o revisa si hay un error de tipeo.`;
   }
   return `Pago completo: ${fmtBs(pago.pagadoBs)} (${fmtUsd(pago.pagadoUsd)})` + (dif > 0 ? `, sobran ${fmtBs(dif)}` : '');
+}
+
+/** Flechas ← → para moverse entre los botones de forma de pago. */
+function moverEntreMetodos(e: React.KeyboardEvent<HTMLButtonElement>) {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  e.preventDefault();
+  const botones = [...document.querySelectorAll<HTMLButtonElement>('[data-metodo]')];
+  const i = botones.indexOf(e.currentTarget);
+  botones[(i + (e.key === 'ArrowRight' ? 1 : -1) + botones.length) % botones.length]?.focus();
 }
 
 const boton = (activo: boolean) =>
@@ -70,18 +82,18 @@ export function FormaDePago({
 
       <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
         {METODOS.map((m) => (
-          <button key={m} type="button" onClick={() => alElegirModo(m)} aria-pressed={modo === m} className={boton(modo === m)}>
+          <button key={m} type="button" data-metodo={m} onKeyDown={moverEntreMetodos} onClick={() => alElegirModo(m)} aria-pressed={modo === m} className={boton(modo === m)}>
             {NOMBRE_METODO[m]}
           </button>
         ))}
-        <button type="button" onClick={() => alElegirModo('MIXTA')} aria-pressed={modo === 'MIXTA'} className={boton(modo === 'MIXTA')}>
+        <button type="button" data-metodo="MIXTA" onKeyDown={moverEntreMetodos} onClick={() => alElegirModo('MIXTA')} aria-pressed={modo === 'MIXTA'} className={boton(modo === 'MIXTA')}>
           Mixta
         </button>
       </div>
 
       {modo && (
         <div className="mt-4 space-y-2">
-          {pagos.map((p) => {
+          {pagos.map((p, fila) => {
             const invalido = p.monto.trim() !== '' && leerMonto(p.monto) === null;
             const sugerido = montoRestante(cotizacion, p.metodo);
             return (
@@ -92,7 +104,11 @@ export function FormaDePago({
                     value={p.metodo}
                     onChange={(e) => {
                       const metodo = e.target.value as MetodoPago;
-                      alCambiarPago(p.id, { metodo, cuentaId: esEfectivo(metodo) ? null : (p.cuentaId ?? cuentas[0]?.id ?? null) });
+                      alCambiarPago(p.id, {
+                        metodo,
+                        cuentaId: esEfectivo(metodo) ? null : (p.cuentaId ?? cuentas[0]?.id ?? null),
+                        referencia: llevaReferencia(metodo) ? p.referencia : '',
+                      });
                     }}
                     className="rounded border border-cafe/50 bg-white px-2 py-1"
                   >
@@ -111,6 +127,9 @@ export function FormaDePago({
                   <input
                     value={p.monto}
                     onChange={(e) => alCambiarPago(p.id, { monto: e.target.value })}
+                    onKeyDown={alEnter}
+                    data-flujo={FLUJO.pago(fila, 0)}
+                    data-pago-monto
                     inputMode="decimal"
                     aria-invalid={invalido || undefined}
                     className={`w-32 rounded border bg-white px-2 py-1 text-right tabular-nums ${invalido ? 'border-ladrillo' : 'border-cafe/50'}`}
@@ -129,6 +148,8 @@ export function FormaDePago({
                       aria-label="Cuenta bancaria"
                       value={p.cuentaId ?? ''}
                       onChange={(e) => alCambiarPago(p.id, { cuentaId: e.target.value ? Number(e.target.value) : null })}
+                      onKeyDown={alEnter}
+                      data-flujo={FLUJO.pago(fila, 1)}
                       className={`rounded border bg-white px-2 py-1 ${p.cuentaId ? 'border-cafe/50' : 'border-ladrillo'}`}
                     >
                       <option value="">Cuenta…</option>
@@ -138,13 +159,17 @@ export function FormaDePago({
                         </option>
                       ))}
                     </select>
+                    {llevaReferencia(p.metodo) && (
                     <input
                       value={p.referencia}
                       onChange={(e) => alCambiarPago(p.id, { referencia: e.target.value })}
+                      onKeyDown={alEnter}
+                      data-flujo={FLUJO.pago(fila, 2)}
                       placeholder="Referencia"
                       aria-label="Número de referencia"
                       className="w-32 rounded border border-cafe/50 bg-white px-2 py-1"
                     />
+                    )}
                   </>
                 )}
 

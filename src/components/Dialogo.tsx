@@ -25,7 +25,14 @@ export function Dialogo({
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (abierto && !d.open) d.showModal();
+    if (abierto && !d.open) {
+      d.showModal();
+      // El navegador enfoca el primer elemento (la × de cerrar). Se corrige:
+      // primero el elemento marcado como principal, si no, el primer campo.
+      requestAnimationFrame(() => {
+        d.querySelector<HTMLElement>('[data-autofocus], input:not([disabled]):not([type=hidden]):not([type=file]), select, textarea')?.focus();
+      });
+    }
     if (!abierto && d.open) d.close();
   }, [abierto]);
 

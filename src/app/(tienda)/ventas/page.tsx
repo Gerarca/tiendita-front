@@ -3,13 +3,16 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialogo } from '@/components/Dialogo';
+import { useTasaVigente } from '@/components/TasaDelDia';
+import { DialogoTasa } from '@/components/tasas/DialogoTasa';
 import { BotonFactura } from '@/components/facturas/BotonFactura';
 import { AgregarProducto } from '@/components/ventas/AgregarProducto';
 import { CLIENTE_VACIO, DatosCliente, type ClienteVenta } from '@/components/ventas/DatosCliente';
-import { esEfectivo, FormaDePago, type ModoPago, type PagoForm } from '@/components/ventas/FormaDePago';
+import { esEfectivo, FormaDePago, llevaReferencia, type ModoPago, type PagoForm } from '@/components/ventas/FormaDePago';
 import { TablaVenta, type LineaVenta } from '@/components/ventas/TablaVenta';
 import { VentasDeHoy } from '@/components/ventas/VentasDeHoy';
 import { api, ErrorApi } from '@/lib/api';
+import { enfocar, FLUJO } from '@/lib/flujo';
 import { fmtBs, fmtDiaCorto, fmtUsd, leerMonto, NOMBRE_METODO } from '@/lib/formato';
 import { useRetardado } from '@/lib/hooks';
 import { useSesion } from '@/lib/sesion';
@@ -37,6 +40,9 @@ export default function PaginaVentas() {
   const [registrando, setRegistrando] = useState(false);
   const [errorRegistro, setErrorRegistro] = useState<string | null>(null);
   const [resultado, setResultado] = useState<VentaRegistrada | null>(null);
+
+  // Dólar del día: se muestra desde que se abre la pantalla, antes de cargar productos
+  const tasaVigente = useTasaVigente();
 
   const cuentas = useQuery({
     queryKey: ['cuentas'],
@@ -83,6 +89,7 @@ export default function PaginaVentas() {
   }
 
   function elegirModo(m: ModoPago) {
+    enfocar('[data-pago-monto]');
     if (m === modo) return;
     setModo(m);
     setMontoAuto(true);
@@ -106,7 +113,7 @@ export default function PaginaVentas() {
     setMontoAuto(true);
     setErrorRegistro(null);
     setResultado(null);
-    requestAnimationFrame(() => refCodigo.current?.focus());
+    enfocar('#cli-doc');
   }, []);
 
   // ---------- ¿Se puede cobrar? (se explica qué falta) ----------
@@ -150,7 +157,7 @@ export default function PaginaVentas() {
             metodo: p.metodo,
             monto: leerMonto(p.monto),
             ...(p.cuentaId ? { cuentaId: p.cuentaId } : {}),
-            ...(p.referencia.trim() ? { referencia: p.referencia.trim() } : {}),
+            ...(llevaReferencia(p.metodo) && p.referencia.trim() ? { referencia: p.referencia.trim() } : {}),
           })),
           tasaEsperada: cot.tasaEsperada,
           totalUsdEsperado: cot.totalUsdEsperado,
@@ -190,16 +197,23 @@ export default function PaginaVentas() {
     return () => window.removeEventListener('keydown', tecla);
   }, []);
 
-  useEffect(() => refCodigo.current?.focus(), []);
+  // Al entrar a la pantalla, el foco va a la cédula del cliente
+  useEffect(() => {
+    enfocar('#cli-doc');
+  }, []);
 
   const etiqueta = 'font-mano text-xl uppercase text-cafe-oscuro';
 
   return (
     <div>
-      <DatosCliente valor={cliente} alCambiar={setCliente} />
+      <DatosCliente valor={cliente} alCambiar={setCliente} alCompletar={() => refCodigo.current?.focus()} />
 
       <div className="mt-6 border-t border-cafe/30 pt-4">
-        <AgregarProducto alAgregar={agregarProducto} refCodigo={refCodigo} />
+        <AgregarProducto
+          alAgregar={agregarProducto}
+          refCodigo={refCodigo}
+          alCodigoVacio={() => lineas.length > 0 && enfocar(`[data-metodo="${modo ?? 'PAGO_MOVIL'}"]`)}
+        />
         <TablaVenta
           lineas={lineas}
           cotizadas={cot?.lineas}
@@ -210,11 +224,7 @@ export default function PaginaVentas() {
 
       {/* ---------- Totales (parte inferior del boceto) ---------- */}
       <div className="mt-4 flex items-start justify-between gap-6">
-        <div>
-          <span className={etiqueta}>Precio del $:</span>{' '}
-          <span className="text-lg tabular-nums">{cot ? fmtBs(cot.tasa) : '—'}</span>
-          {cot && <span className="ml-2 text-xs text-cafe">tasa del {fmtDiaCorto(cot.fechaTasa)}</span>}
-        </div>
+        <PrecioDelDolar tasa={tasaVigente} cotizada={cot ? { tasa: cot.tasa, fecha: cot.fechaTasa } : null} esAdmin={usuario?.rol === 'ADMIN'} />
         <div className="grid grid-cols-[auto_12rem] items-center gap-x-3 gap-y-2">
           <span className={`${etiqueta} text-right`}>Total a pagar:</span>
           <span className="rounded border-2 border-cafe px-3 py-1 text-right text-xl font-bold tabular-nums">{cot ? fmtUsd(cot.totalUsd) : '0,00 $'}</span>
@@ -250,12 +260,13 @@ export default function PaginaVentas() {
           type="button"
           onClick={registrar}
           disabled={!puedeRegistrar}
+          data-flujo={FLUJO.registrar}
           className="rounded bg-cafe-oscuro px-6 py-2 font-mano text-2xl uppercase text-white hover:bg-cafe disabled:cursor-not-allowed disabled:opacity-40"
         >
           {registrando ? 'Registrando…' : 'Registrar venta'} <span className="text-base opacity-70">(F9)</span>
         </button>
       </div>
-      <p className="mt-1 text-right text-xs text-cafe">F2: ir al código</p>
+      <p className="mt-1 text-right text-xs text-cafe">Enter: siguiente campo | ← →: elegir forma de pago | F2: ir al código | F9: registrar</p>
 
       <Dialogo abierto={resultado !== null} titulo="Venta registrada" alCerrar={nuevaVenta}>
         {resultado && (
@@ -285,7 +296,7 @@ export default function PaginaVentas() {
                 numeroControl={resultado.numeroControl}
                 className="rounded border-2 border-cafe-oscuro px-5 py-2 font-mano text-2xl uppercase text-cafe-oscuro hover:bg-durazno-claro disabled:opacity-60"
               />
-              <button autoFocus onClick={nuevaVenta} className="rounded bg-cafe-oscuro px-6 py-2 font-mano text-2xl uppercase text-white hover:bg-cafe">
+              <button data-autofocus onClick={nuevaVenta} className="rounded bg-cafe-oscuro px-6 py-2 font-mano text-2xl uppercase text-white hover:bg-cafe">
                 Nueva venta
               </button>
             </div>
@@ -294,6 +305,75 @@ export default function PaginaVentas() {
       </Dialogo>
 
       <VentasDeHoy esAdmin={usuario?.rol === 'ADMIN'} />
+    </div>
+  );
+}
+
+/**
+ * "PRECIO DEL $" del boceto: el dólar del día que se usará para cobrar.
+ * Avisa si la tasa no es de hoy o si está vencida (en ese caso no se puede vender).
+ */
+function PrecioDelDolar({
+  tasa,
+  cotizada,
+  esAdmin,
+}: {
+  tasa: ReturnType<typeof useTasaVigente>;
+  cotizada: { tasa: string; fecha: string } | null;
+  esAdmin: boolean;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const etiqueta = 'font-mano text-xl uppercase text-cafe-oscuro';
+  const t = tasa.data;
+  // Si ya hay cotización se muestra la que usó el servidor; si no, la vigente
+  const valor = cotizada?.tasa ?? t?.bsPorUsd;
+  const fecha = cotizada?.fecha ?? t?.fecha;
+
+  let aviso: { texto: string; clase: string } | null = null;
+  if (tasa.error instanceof ErrorApi && tasa.error.estado === 404) {
+    aviso = { texto: 'Sin tasa registrada: no se puede vender', clase: 'bg-ladrillo text-white' };
+  } else if (tasa.error) {
+    aviso = { texto: 'No se pudo leer la tasa', clase: 'bg-ladrillo text-white' };
+  } else if (t && !t.validaParaVender) {
+    aviso = { texto: 'Tasa vencida: registra la de hoy para poder vender', clase: 'bg-ladrillo text-white' };
+  } else if (t && !t.esDeHoy) {
+    aviso = { texto: 'No es la tasa de hoy', clase: 'bg-durazno text-cafe-oscuro' };
+  }
+
+  return (
+    <div>
+      <span className={etiqueta}>Precio del $:</span>{' '}
+      <span className="text-lg font-bold tabular-nums">{valor ? fmtBs(valor) : tasa.isLoading ? '…' : '—'}</span>
+      {fecha && (
+        <span className="ml-2 text-xs text-cafe">
+          tasa del {fmtDiaCorto(fecha)}
+          {t && `, ${t.fuente === 'BCV' ? 'BCV' : 'registrada a mano'}`}
+        </span>
+      )}
+      {aviso && <p className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-semibold ${aviso.clase}`}>{aviso.texto}</p>}
+
+      {/* El vendedor lo ve solo si falta la tasa de hoy; el administrador, siempre */}
+      {(esAdmin || !t?.esDeHoy) && (
+        <div className="mt-1">
+          <button type="button" onClick={() => { setMensaje(null); setAbierto(true); }} className="text-sm text-cafe-oscuro underline">
+            {esAdmin && t?.esDeHoy ? 'Registrar o corregir tasa' : 'Registrar tasa'}
+          </button>
+        </div>
+      )}
+      {mensaje && <p role="status" className="mt-1 text-sm font-semibold text-salvia">{mensaje}</p>}
+
+      <Dialogo abierto={abierto} titulo="Dólar del día" alCerrar={() => setAbierto(false)}>
+        {abierto && (
+          <DialogoTasa
+            esAdmin={esAdmin}
+            alTerminar={(m) => {
+              setAbierto(false);
+              setMensaje(m);
+            }}
+          />
+        )}
+      </Dialogo>
     </div>
   );
 }

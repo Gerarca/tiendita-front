@@ -9,6 +9,7 @@ import { DetalleFactura } from '@/components/facturas/DetalleFactura';
 import { api } from '@/lib/api';
 import { fmtBs, fmtFechaHora, fmtUsd, hoyIso, inicioMesIso, NOMBRE_METODO } from '@/lib/formato';
 import { useRetardado } from '@/lib/hooks';
+import { useSesion } from '@/lib/sesion';
 import type { ListaVentas, VentaResumen } from '@/lib/tipos';
 
 const POR_PAGINA = 25;
@@ -17,6 +18,7 @@ const control = 'rounded border border-cafe/50 bg-white px-2 py-1.5';
 
 /** Historial de facturas: filtros, lista paginada, detalle y PDF. */
 export default function PaginaFacturas() {
+  const { usuario } = useSesion();
   const [desde, setDesde] = useState(inicioMesIso());
   const [hasta, setHasta] = useState(hoyIso());
   const [texto, setTexto] = useState('');
@@ -74,6 +76,7 @@ export default function PaginaFacturas() {
           </select>
         </label>
       </div>
+      {usuario?.rol === 'VENDEDOR' && <p className="mt-3 text-sm text-cafe">Se muestran solo las ventas que registraste tú.</p>}
       {!rangoValido && <p className="mt-2 text-sm text-ladrillo">Revisa las fechas: "Desde" debe ser anterior a "Hasta".</p>}
 
       {data && (
