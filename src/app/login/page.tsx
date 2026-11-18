@@ -31,8 +31,10 @@ export default function PaginaLogin() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <form onSubmit={entrar} className="w-full max-w-sm rounded-lg border-2 border-cafe bg-white p-8">
+    <main className="fondo-login flex min-h-screen items-center justify-center px-4">
+      {/* Marco durazno alrededor del formulario, como en el diseño */}
+      <div className="w-full max-w-sm rounded-xl bg-durazno p-2 shadow-xl">
+      <form onSubmit={entrar} className="w-full rounded-lg border-2 border-cafe bg-white p-8">
         <h1 className="text-center font-mano text-4xl text-tinta">Tienda del Monasterio</h1>
         <p className="mb-6 mt-1 text-center text-sm text-cafe-oscuro">Inicia sesión para continuar</p>
 
@@ -76,6 +78,7 @@ export default function PaginaLogin() {
           {enviando ? 'Entrando…' : 'Entrar'}
         </button>
       </form>
+      </div>
     </main>
   );
 }

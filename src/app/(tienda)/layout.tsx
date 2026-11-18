@@ -21,7 +21,8 @@ export default function LayoutTienda({ children }: { children: ReactNode }) {
   if (cargando || !usuario) return <Cargando />;
 
   return (
-    <>
+    // flow-root: contiene el margen inferior del último elemento, así la foto llega hasta el pie
+    <div className="fondo-tienda flow-root min-h-screen">
       <Encabezado />
       <Pestanas />
       <main className={`mx-auto max-w-6xl px-4 ${usuario.rol === 'ADMIN' ? '' : 'mb-10'}`}>
@@ -41,6 +42,6 @@ export default function LayoutTienda({ children }: { children: ReactNode }) {
       </main>
       {/* Reportes: solo administradores (igual que el permiso del backend) */}
       {usuario.rol === 'ADMIN' && <BarraDescargas />}
-    </>
+    </div>
   );
 }

@@ -32,6 +32,8 @@ export interface Producto {
   stockBajo: boolean;
   activo: boolean;
   vozFiscal: { id: number; nombre: string; exentoIva: boolean; origen: 'producto' | 'categoria' } | null;
+  /** Si lleva IVA (columna CON IVA del recuadro MÁQUINA Bs.). */
+  aplicaIva: boolean;
   categoria: { id: number; nombre: string; padre: { id: number; nombre: string } | null };
 }
 

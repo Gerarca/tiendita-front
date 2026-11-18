@@ -1,12 +1,12 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { BotonesFormulario, Campo } from '@/components/Campo';
 import { api, ErrorApi } from '@/lib/api';
 import { alEnter, FLUJO_PRODUCTO as O } from '@/lib/flujo';
 import { leerEntero, leerMonto } from '@/lib/formato';
-import type { Categoria, Ingreso, Producto, VozFiscal } from '@/lib/tipos';
+import type { Categoria, Ingreso, Producto } from '@/lib/tipos';
 import { SelectorImagen } from './SelectorImagen';
 
 /** Boceto "NUEVO": crea el producto con su primer ingreso y, si hay, su imagen. */
@@ -26,14 +26,11 @@ export function FormProductoNuevo({
   const [precio, setPrecio] = useState('');
   const [costo, setCosto] = useState('');
   const [nota, setNota] = useState('');
-  const [vozFiscalId, setVozFiscalId] = useState<number | ''>('');
+  const [aplicaIva, setAplicaIva] = useState(false); // por defecto, sin IVA
   const [imagen, setImagen] = useState<File | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-
-  const voces = useQuery({ queryKey: ['voces-fiscales'], queryFn: () => api<VozFiscal[]>('/voces-fiscales') });
-  const vozCategoria = voces.data?.find((v) => v.id === categoria.vozFiscalId);
 
   /** Al editar un campo, su mensaje de error desaparece. */
   const limpiar = (campo: string) => setErrores((e) => (e[campo] ? { ...e, [campo]: '' } : e));
@@ -65,7 +62,7 @@ export function FormProductoNuevo({
             nombre: nombre.trim(),
             categoriaId: categoria.id,
             precioUsd: prec,
-            ...(vozFiscalId ? { vozFiscalId } : {}),
+            aplicaIva,
           },
           cantidad: cant,
           ...(cost !== undefined ? { costoUnitUsd: cost } : {}),
@@ -110,31 +107,25 @@ export function FormProductoNuevo({
 
       <SelectorImagen archivo={imagen} alCambiar={setImagen} />
 
-      <div className="mb-3 grid grid-cols-[7.5rem_1fr] items-center gap-2">
-        <label htmlFor="voz" className="font-mano text-xl uppercase text-cafe-oscuro">
-          Voz fiscal:
-        </label>
+      <div className="mb-3 grid grid-cols-[7.5rem_1fr] items-start gap-2">
+        <span className="font-mano text-xl uppercase text-cafe-oscuro">IVA:</span>
         <div>
-          <select
-            id="voz"
-            value={vozFiscalId}
-            onChange={(e) => setVozFiscalId(e.target.value ? Number(e.target.value) : '')}
-            onKeyDown={alEnter}
-            data-flujo={O.voz}
-            className="w-full border-b-2 border-cafe/40 bg-transparent px-1 py-1 outline-none focus:border-cafe"
-          >
-            <option value="">
-              {vozCategoria ? `La de la categoría (${vozCategoria.nombre})` : 'La de la categoría (sin asignar)'}
-            </option>
-            {voces.data
-              ?.filter((v) => v.activo)
-              .map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.nombre} ({v.exentoIva ? 'exento' : 'con IVA'})
-                </option>
-              ))}
-          </select>
-          <p className="mt-1 text-xs text-cafe">Departamento de la máquina fiscal; aparece en el recuadro "MÁQUINA Bs." de la factura.</p>
+          <label className="flex items-center gap-2 pt-1">
+            <input
+              id="aplica-iva"
+              type="checkbox"
+              checked={aplicaIva}
+              onChange={(e) => setAplicaIva(e.target.checked)}
+              onKeyDown={alEnter}
+              data-flujo={O.voz}
+              className="h-4 w-4 accent-cafe-oscuro"
+            />
+            <span>Aplica IVA</span>
+          </label>
+          <p className="mt-1 text-xs text-cafe">
+            Márcalo si el producto lleva IVA. En la factura suma en la columna &quot;CON IVA&quot; del recuadro &quot;MÁQUINA Bs.&quot;; si no,
+            en &quot;EXENTO&quot;.
+          </p>
         </div>
       </div>
 

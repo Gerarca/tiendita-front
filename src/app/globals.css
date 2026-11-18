@@ -36,3 +36,21 @@ body {
     transition: none !important;
   }
 }
+
+/*
+ * Fondos con fotos del monasterio, aclaradas con un velo durazno
+ * para que el contenido se lea bien encima.
+ */
+.fondo-login,
+.fondo-tienda {
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-color: var(--color-durazno);
+}
+.fondo-login {
+  background-image: linear-gradient(rgb(252 236 220 / 0.5), rgb(252 236 220 / 0.5)), url('/assets/img/fondo-login.jpg');
+}
+.fondo-tienda {
+  background-image: linear-gradient(rgb(248 217 187 / 0.55), rgb(248 217 187 / 0.55)), url('/assets/img/fondo-tienda.jpg');
+}
